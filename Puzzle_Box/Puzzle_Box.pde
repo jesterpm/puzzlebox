@@ -132,14 +132,49 @@ void loop()
  * This is what we do while idle...
  */
 void doMainStage() {
+    /* Timeline
+     *    0  E On (500 ms)
+     *  500  E Off (200 ms)
+     *  700  E On (500 ms)
+     * 1200  E off (200 ms)
+     * 1400  E on (1600 ms)
+     * 3000  Shift Anim. (200 ms/frame * 13 frames = 2600 ms)
+     * 5600  On (3000 ms)
+     */
 
+    int delta = millis() - lastLoopTime;
 
-  if (millis() - lastLoopTime > 200) {
-    stepEyeAnimation();
-    lastLoopTime = millis();
-  }  
-  
+    if (delta < 500) {
+        // On
+        toggleEye(true);
 
+    } else if (delta < 700) {
+        // Off
+        toggleEye(false);
+
+    } else if (delta < 1200) {
+        // On
+        toggleEye(true);
+
+    } else if (delta < 1400) {
+        // Off
+        toggleEye(false);
+
+    } else if (delta < 3000) {
+        // On
+        toggleEye(true);
+
+    } else if (delta < 5600) {
+        // Shift Animation
+        stepEyeAnimation();
+
+    } else {
+        // On
+        toggleEye(true);
+        
+        // Reset timer
+        lastLoopTime = millis();
+    }
 }
 
 /**
@@ -308,25 +343,41 @@ void drawEye(int location)
 }
 
 void stepEyeAnimation() {
-  //if (currentEyeAnimationStep < 12) {
     drawEye(eyeAnimationSteps[currentEyeAnimationStep]);
     currentEyeAnimationStep++;
     currentEyeAnimationStep = currentEyeAnimationStep % 12;
-  //}
 }
 
-void blinkEye() {
-  // Eyes on
-  digitalWrite(LED_pin, HIGH);
-  delay(100);
-  
-  // Off
-  lcd.noDisplay();
-  digitalWrite(LED_pin, LOW);
-  delay(100);
-  
-  // Back on
-  lcd.display();
-  digitalWrite(LED_pin, HIGH);
+void toggleEye(bool on) {
+    // Eyes on
+    if (on) {
+        lcd.display();
+        digitalWrite(LED_pin, HIGH);
+    
+    } else {
+      lcd.noDisplay();
+      digitalWrite(LED_pin, LOW);
+    } 
 }
 
+/**
+ * Convert the distance to a particular unit.
+ *
+ */
+float toRandomUnit(int choice, float dist) {
+    switch (choice) {
+        // feet
+        case 0:
+
+        // meters
+        case 1:
+
+        // cubits
+        case 2:
+
+        // hands
+        case 3:
+
+
+    }
+}

@@ -14,13 +14,14 @@ static const int BUTTON_PIN = 1; // The pin for the button.
 void Msg(LiquidCrystal &lcd, const char *top, const char *bottom, unsigned long del);
 void drawEye(int location);
 void stepEyeAnimation();
-void blinkEye();
+void toggleEye(bool on);
 void doMainStage();
 void doButtonStage();
 void doUpdateDistance();
 void doCheckOverrideSerial();
 void doCheckAccess();
 void PowerOff();
+float toRandomUnit(int choice, float dist);
 
 /* Fixed values should not need changing */
 static const int DEF_ATTEMPT_MAX = 50;

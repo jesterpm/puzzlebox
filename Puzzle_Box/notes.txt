@@ -1,0 +1,11 @@
+* Turns on
+
+* Eyes shift
+* Blink
+* Rnd Blink/shift
+
+Once the button has been pressed:
+ * Witty comment
+ * Give distance in a random unit
+
+
