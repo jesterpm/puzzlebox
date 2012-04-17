@@ -50,7 +50,7 @@ int attempt_counter;
 int currentEyeAnimationStep = 0;
 long lastLoopTime = 0;
 
-float currentDistance = 0;
+float currentDistance = -1;
 
 
 /* The Arduino setup() function */
@@ -181,21 +181,26 @@ void doMainStage() {
  * This is what we do when the button has been pressed.
  */
 void doButtonStage() {
+  // Plan to go back to the main stage
+  currentStage = MAIN_STAGE;
+
   /* increment it with each run */
   ++attempt_counter;
 
+  // TODO: Witty Saying
   /* Greeting */
   Msg(lcd, "Hello", "Jesse!", 1500);
   Msg(lcd, "Welcome", "to your", 1500);
   Msg(lcd, "puzzle", "box!", 1500);
 
   /* Game over? */
-  if (attempt_counter >= DEF_ATTEMPT_MAX)
+  // TODO: Oh no!
+  /*if (attempt_counter >= DEF_ATTEMPT_MAX)
   {
     Msg(lcd, "Sorry!", "No more", 2000);
     Msg(lcd, "attempts", "allowed!", 2000);
     PowerOff();
-  }
+  }*/
 
   /* Print out the attempt counter */
   Msg(lcd, "This is", "attempt", 2000);
@@ -209,7 +214,15 @@ void doButtonStage() {
   /* Save the new attempt counter */
   EEPROM.write(EEPROM_OFFSET, attempt_counter);
 
-  Msg(lcd, "Seeking", "Signal..", 0);
+  if (currentDistance == -1) {
+      Msg(lcd, "Seeking", "Signal..", 0);
+      doUpdateDistance();
+
+      if (currentDistance == -1) {
+          Msg(lcd, "No   :(", "Signal", 2000);
+          return;
+      }
+  }
 
   doCheckAccess();
 }
@@ -254,26 +267,20 @@ void doCheckAccess() {
   /* Nope.  Print the distance. */
   else
   {
+    // Get a random unit
+    int unit = 0;
+
+
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Distance");
     lcd.setCursor(0, 1);
-    if (currentDistance < 1000)
-    {
-      lcd.print((int)currentDistance);
-      lcd.print(" m.");
-    }
-
-    else
-    {
-      lcd.print((int)(currentDistance / 1000));
-      lcd.print(" km.");
-    }
+    lcd.print((int)toRandomUnit(unit, currentDistance));
+    lcd.print(getUnitLabel(unit));
+    
     delay(4000);
     Msg(lcd, "Access", "Denied!", 2000);
   }
-
-  PowerOff();
 }
 
 
@@ -361,7 +368,7 @@ void toggleEye(bool on) {
 }
 
 /**
- * Convert the distance to a particular unit.
+ * Convert the distance (m) to a particular unit.
  *
  */
 float toRandomUnit(int choice, float dist) {
@@ -378,6 +385,31 @@ float toRandomUnit(int choice, float dist) {
         // hands
         case 3:
 
+        return dist;
+    }
+}
+
+/**
+ * Get the label for each unit.
+ */
+char* getUnitLabel(int choice) {
+    switch (choice) {
+        // meters
+        case 0:
+          return " m.";
+
+        // feet
+        case 1:
+          return " ft.";
+
+        // cubits
+        case 2:
+          return " cu.";
+
+        // hands
+        case 3:
+          return " hn.";
 
     }
 }
+
