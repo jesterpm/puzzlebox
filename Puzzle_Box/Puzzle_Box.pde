@@ -49,6 +49,7 @@ int currentStage = MAIN_STAGE;
 int attempt_counter;
 int currentEyeAnimationStep = 0;
 long lastLoopTime = 0;
+long lastAniTime = 0;
 
 float currentDistance = 0;
 
@@ -92,6 +93,11 @@ void setup()
   if (attempt_counter == 0xFF) // brand new EEPROM?
     attempt_counter = 0;
 
+
+  lastLoopTime = millis();
+  
+  pinMode(BUTTON_PIN, INPUT);
+  digitalWrite(BUTTON_PIN, HIGH);
 }
 
 /* The Arduino loop() function */
@@ -101,7 +107,7 @@ void loop()
     // Check for a stage transition
     int buttonState = digitalRead(BUTTON_PIN);
 
-    if (buttonState = HIGH) {
+    if (buttonState == LOW ) {
         currentStage = BUTTON_STAGE;
     }
   
@@ -140,6 +146,7 @@ void doMainStage() {
      * 1400  E on (1600 ms)
      * 3000  Shift Anim. (200 ms/frame * 13 frames = 2600 ms)
      * 5600  On (3000 ms)
+     * 8600  Back to the start
      */
 
     int delta = millis() - lastLoopTime;
@@ -164,9 +171,12 @@ void doMainStage() {
         // On
         toggleEye(true);
 
-    } else if (delta < 5600) {
+    } else if (delta <= 5600) {
         // Shift Animation
         stepEyeAnimation();
+
+    } else if (delta < 8600) {
+        // Do nothing for now
 
     } else {
         // On
@@ -273,7 +283,7 @@ void doCheckAccess() {
     Msg(lcd, "Access", "Denied!", 2000);
   }
 
-  PowerOff();
+  currentStage = MAIN_STAGE;
 }
 
 
@@ -343,9 +353,14 @@ void drawEye(int location)
 }
 
 void stepEyeAnimation() {
+  long delta = millis() - lastAniTime;
+  
+  if (delta >= 200) {
     drawEye(eyeAnimationSteps[currentEyeAnimationStep]);
     currentEyeAnimationStep++;
     currentEyeAnimationStep = currentEyeAnimationStep % 12;
+    lastAniTime = millis();
+  }
 }
 
 void toggleEye(bool on) {
@@ -377,7 +392,10 @@ float toRandomUnit(int choice, float dist) {
 
         // hands
         case 3:
-
+        
+            return 0;
 
     }
+
+    return 0;
 }
