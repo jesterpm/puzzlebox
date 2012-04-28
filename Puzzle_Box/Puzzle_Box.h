@@ -17,7 +17,7 @@ void stepEyeAnimation();
 void toggleEye(bool on);
 void doMainStage();
 void doButtonStage();
-void doUpdateDistance();
+bool doUpdateDistance();
 void doCheckOverrideSerial();
 void doCheckAccess();
 void PowerOff();

@@ -52,6 +52,7 @@ long lastLoopTime = 0;
 long lastAniTime = 0;
 
 float currentDistance = -1;
+bool im_ready = false;
 
 
 /* The Arduino setup() function */
@@ -124,7 +125,12 @@ void loop()
     }
 
     // Find the current distance just to be ready
-    doUpdateDistance();
+    /*if (doUpdateDistance() && im_ready == false) {
+        Msg(lcd, "GPS", "Rowered!", 2000);
+        im_ready = true;
+    }*/
+
+
 
     // Check for override login attempts
     doCheckOverrideSerial();
@@ -205,15 +211,15 @@ void doButtonStage() {
 
   /* Game over? */
   // TODO: Oh no!
-  /*if (attempt_counter >= DEF_ATTEMPT_MAX)
+  if (attempt_counter >= DEF_ATTEMPT_MAX)
   {
     Msg(lcd, "Sorry!", "No more", 2000);
     Msg(lcd, "attempts", "allowed!", 2000);
     PowerOff();
-  }*/
+  }
 
   /* Print out the attempt counter */
-  Msg(lcd, "This is", "attempt", 2000);
+  Msg(lcd, "This is", "attempt", 1500);
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(attempt_counter);
@@ -221,12 +227,10 @@ void doButtonStage() {
   lcd.print(DEF_ATTEMPT_MAX);
   delay(2000);
 
-  /* Save the new attempt counter */
-  EEPROM.write(EEPROM_OFFSET, attempt_counter);
-
   if (currentDistance == -1) {
       Msg(lcd, "Seeking", "Signal..", 0);
-      doUpdateDistance();
+      long start = millis();
+      while (!doUpdateDistance() && millis() - start < 5000);
 
       if (currentDistance == -1) {
           Msg(lcd, "No   :(", "Signal", 2000);
@@ -235,14 +239,19 @@ void doButtonStage() {
       }
   }
 
+  /* Save the new attempt counter */
+  EEPROM.write(EEPROM_OFFSET, attempt_counter);
+
   doCheckAccess();
 }
 
 
 /**
  * This function updates the distance, if possible.
+ *
+ * Return true if it finished reading data.
  */
-void doUpdateDistance() {
+bool doUpdateDistance() {
   /* Has a valid NMEA sentence been parsed? */
   if (nss.available() && tinygps.encode(nss.read()))
   {
@@ -255,9 +264,11 @@ void doUpdateDistance() {
     {
       /* Calculate the distance to the destination */
       currentDistance = TinyGPS::distance_between(lat, lon, DEST_LATITUDE, DEST_LONGITUDE);
+      return true;
     }
   }
 
+  return false;
 }
 
 /**
