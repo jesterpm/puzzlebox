@@ -37,6 +37,7 @@ For supporting libraries and more information see
 
 #include "Puzzle_Box.h"
 #include "the_eye.h"
+#include "quotes.h"
 
 /* Hardware Objects */
 NewSoftSerial nss(GPSrx, GPStx);
@@ -53,6 +54,7 @@ long lastAniTime = 0;
 
 float currentDistance = -1;
 bool im_ready = false;
+int currentUnit = 0;
 
 
 /* The Arduino setup() function */
@@ -99,12 +101,13 @@ void setup()
   
   pinMode(BUTTON_PIN, INPUT);
   digitalWrite(BUTTON_PIN, HIGH);
+
+	randomSeed(analogRead(2));
 }
 
 /* The Arduino loop() function */
 void loop()
 {
-
     // Check for a stage transition
     int buttonState = digitalRead(BUTTON_PIN);
 
@@ -125,11 +128,9 @@ void loop()
     }
 
     // Find the current distance just to be ready
-    /*if (doUpdateDistance() && im_ready == false) {
-        Msg(lcd, "GPS", "Rowered!", 2000);
+    if (doUpdateDistance() && im_ready == false) {
         im_ready = true;
-    }*/
-
+    }
 
 
     // Check for override login attempts
@@ -200,12 +201,17 @@ void doButtonStage() {
   // Plan to go back to the main stage
   currentStage = MAIN_STAGE;
 
+	// Screen on please.
+  toggleEye(true);
+
   /* increment it with each run */
   ++attempt_counter;
 
   // TODO: Witty Saying
+	//showQuote(4);
+
   /* Greeting */
-  Msg(lcd, "Hello", "Jesse!", 1500);
+  Msg(lcd, "Hello", "Craig!", 1500);
   Msg(lcd, "Welcome", "to your", 1500);
   Msg(lcd, "puzzle", "box!", 1500);
 
@@ -230,7 +236,7 @@ void doButtonStage() {
   if (currentDistance == -1) {
       Msg(lcd, "Seeking", "Signal..", 0);
       long start = millis();
-      while (!doUpdateDistance() && millis() - start < 5000);
+      while (!doUpdateDistance() && millis() - start < 10000);
 
       if (currentDistance == -1) {
           Msg(lcd, "No   :(", "Signal", 2000);
@@ -290,15 +296,13 @@ void doCheckAccess() {
   else
   {
     // Get a random unit
-    int unit = 0;
-
-
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Distance");
-    lcd.setCursor(0, 1);
-    lcd.print((int)toRandomUnit(unit, currentDistance));
-    lcd.print(getUnitLabel(unit));
+    lcd.print((long)toRandomUnit(currentUnit, currentDistance));
+		lcd.setCursor(0, 1);
+    lcd.print(getUnitLabel(currentUnit));
+
+		currentUnit = (currentUnit + 1) % NUMBER_OF_UNITS;
     
     delay(4000);
     Msg(lcd, "Access", "Denied!", 2000);
@@ -400,19 +404,24 @@ void toggleEye(bool on) {
  */
 float toRandomUnit(int choice, float dist) {
     switch (choice) {
-        // feet
-        case 0:
-
         // meters
+        case 0:
+					return dist;					
+
+        // feet
         case 1:
+					return dist * 3.2808;
 
         // cubits
         case 2:
+					return dist * 2.18;
 
         // hands
         case 3:
+					return dist * 9.84252;
 
-            return dist;
+				default:
+					return -1;
     }
 }
 
@@ -435,10 +444,20 @@ char* getUnitLabel(int choice) {
 
         // hands
         case 3:
-          return " hn.";
+          return " hh.";
 
         default:
           return " ?";
     }
 }
 
+void showQuote(int id) {
+	int pairs = messages[id].pairs;
+
+	for (int i = 0; i < pairs; i++) {
+		Msg(lcd,
+			messages[id].lines[i].line1,
+			messages[id].lines[i].line2,
+			1000);
+	}
+}

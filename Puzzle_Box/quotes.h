@@ -8,8 +8,8 @@ typedef struct {
     line_pair_t * lines;
 } message_t;
 
-const int msgcount = 12;
-const message_t messages[] = {
+static const int msgcount = 12;
+static const message_t messages[] = {
     { 1, (line_pair_t []){ {"That is" , "my eye!" } } },
     { 1, (line_pair_t []){ {"Ouch!"   , ""        } } },
     { 1, (line_pair_t []){ {"Hey!"    , ""        } } },

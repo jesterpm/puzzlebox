@@ -22,6 +22,7 @@ void doCheckOverrideSerial();
 void doCheckAccess();
 void PowerOff();
 float toRandomUnit(int choice, float dist);
+void showQuote(int quote);
 
 /* Fixed values should not need changing */
 static const int DEF_ATTEMPT_MAX = 50;
@@ -30,6 +31,9 @@ static const int EEPROM_OFFSET = 100;
 /* Program Stage Constants */
 static const int MAIN_STAGE = 1;
 static const int BUTTON_STAGE = 2;
+
+/* Random Units */
+static const int NUMBER_OF_UNITS = 4;
 
 /* Eye Animation Steps (12 step program) */
 static const int eyeAnimationSteps[] = { 0, -1, -2, -2, -2, -1, 0, 1, 2, 2, 2, 1, 0 };
@@ -40,9 +44,10 @@ static const int MAX_EYE_STEPS = 13;
 
 /* These values should be adjusted according to your needs */
 static const int CLOSED_ANGLE = 80; // degrees
-static const int OPEN_ANGLE = 180; // degrees
-static const float DEST_LATITUDE = 47.512157;
-static const float DEST_LONGITUDE = -119.498119;
-static const int RADIUS = 5; // meters
+static const int OPEN_ANGLE = 200; // degrees
+
+static const float DEST_LATITUDE = 47.272697;
+static const float DEST_LONGITUDE = -122.021201;
+static const int RADIUS = 100; // meters
 
 
