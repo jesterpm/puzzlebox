@@ -53,8 +53,9 @@ byte currentEyeAnimationStep = 0;
 long lastLoopTime = 0;
 long lastAniTime = 0;
 
-float currentDistance = -1;
-bool im_ready = false;
+bool gpsReady = false;
+float currentLat, currentLon;
+
 int currentUnit = 0;
 
 
@@ -146,14 +147,12 @@ void loop() {
                 break;
         }
 
-    } else  {
+    } else {
         doIdle();
     }
 
     // Find the current distance just to be ready
-    if (doUpdateDistance() && im_ready == false) {
-        im_ready = true;
-    }
+    doUpdateDistance();
 
     // Check for override login attempts
     doCheckOverrideSerial();
@@ -221,67 +220,113 @@ void doIdle() {
  * This is what we do when the button has been pressed.
  */
 void doLatLong() {
-  // Plan to go back to the main stage
-  currentStage = MAIN_STAGE;
+    if (doAttemptCount()) {
+        /* Calculate the distance to the destination */
+        float currentDistance = TinyGPS::distance_between(
+                currentLat, currentLon, LATLONG_LATITUDE, LATLONG_LONGITUDE);
 
-    // Screen on please.
-  toggleEye(true);
+        if (currentDistance <= RADIUS) {
+            // Here we are!
+            currentStage++;
+            saveState();
 
-  /* increment it with each run */
-  ++attempt_counter;
+        } else {
+            // Not there yet. Get a random unit
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print((long)toRandomUnit(currentUnit, currentDistance));
+            lcd.setCursor(0, 1);
+            lcd.print(getUnitLabel(currentUnit));
 
-  // TODO: Witty Saying
-    //showQuote(4);
-
-  /* Greeting */
-  Msg(lcd, "Hello", "Craig!", 1500);
-  Msg(lcd, "Welcome", "to your", 1500);
-  Msg(lcd, "puzzle", "box!", 1500);
-
-  /* Game over? */
-  // TODO: Oh no!
-  if (attempt_counter >= DEF_ATTEMPT_MAX)
-  {
-    Msg(lcd, "Sorry!", "No more", 2000);
-    Msg(lcd, "attempts", "allowed!", 2000);
-    PowerOff();
-  }
-
-  /* Print out the attempt counter */
-  Msg(lcd, "This is", "attempt", 1500);
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print(attempt_counter);
-  lcd.print(" of ");
-  lcd.print(DEF_ATTEMPT_MAX);
-  delay(2000);
-
-  if (currentDistance == -1) {
-      Msg(lcd, "Seeking", "Signal..", 0);
-      long start = millis();
-      while (!doUpdateDistance() && millis() - start < 10000);
-
-      if (currentDistance == -1) {
-          Msg(lcd, "No   :(", "Signal", 2000);
-          attempt_counter--;
-          return;
-      }
-  }
-
-  /* Save the new attempt counter */
-  EEPROM.write(EEPROM_OFFSET, attempt_counter);
-  EEPROM.write(EEPROM_OFFSET + 1, currentMessageId);
-  EEPROM.write(EEPROM_OFFSET + 2, currentStage);
-
-  doCheckAccess();
+            currentUnit = (currentUnit + 1) % NUMBER_OF_UNITS;
+            delay(4000);
+        }
+    }
 }
 
 void doHeading() {
+    if (doAttemptCount()) {
+        /* Calculate the distance to the destination */
+        float currentDistance = TinyGPS::distance_between(
+                currentLat, currentLon, HEADING_LATITUDE, HEADING_LONGITUDE);
 
+        if (currentDistance <= RADIUS) {
+            // Here we are!
+            currentStage++;
+            saveState();
+
+        } else {
+            // Not there yet, print a bearing
+            int currentBearing = TinyGPS::bearing_between(
+                    currentLat, currentLon, HEADING_LATITUDE, HEADING_LONGITUDE);
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print(currentBearing);
+            lcd.setCursor(0, 1);
+            lcd.print("degrees");
+            delay(4000);
+        }
+    }
 }
 
 void doEastOf() {
+    if (doAttemptCount()) {
+        if (currentLon > EASTOF_LONGITUDE) {
+            // Here we are!
+            currentStage++;
+            saveState();
 
+        } else {
+            Msg(lcd, "Campfire", "S'mores!", 2000);
+        }
+    }
+}
+
+bool doAttemptCount() {
+    // Screen on please.
+    toggleEye(true);
+
+    /* increment it with each run */
+    ++attempt_counter;
+
+    /* Game over? */
+    if (attempt_counter >= DEF_ATTEMPT_MAX) {
+        Msg(lcd, "Sorry!", "No more", 2000);
+        Msg(lcd, "attempts", "allowed!", 2000);
+        PowerOff();
+        return false;
+    }
+
+    /* Print out the attempt counter */
+    Msg(lcd, "This is", "attempt", 1500);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(attempt_counter);
+    lcd.print(" of ");
+    lcd.print(DEF_ATTEMPT_MAX);
+    delay(2000);
+
+    if (!gpsReady == -1) {
+        Msg(lcd, "Seeking", "Signal..", 0);
+        long start = millis();
+        while (!doUpdateDistance() && millis() - start < 10000);
+
+        if (!gpsReady) {
+            Msg(lcd, "No   :(", "Signal", 2000);
+            attempt_counter--;
+            return false;
+        }
+    }
+
+    saveState();
+    return true;
+}
+
+void saveState() {
+    /* Save the new attempt counter */
+    EEPROM.write(EEPROM_OFFSET, attempt_counter);
+    EEPROM.write(EEPROM_OFFSET + 1, currentMessageId);
+    EEPROM.write(EEPROM_OFFSET + 2, currentStage);
 }
 
 /**
@@ -290,23 +335,23 @@ void doEastOf() {
  * Return true if it finished reading data.
  */
 bool doUpdateDistance() {
-  /* Has a valid NMEA sentence been parsed? */
-  if (nss.available() && tinygps.encode(nss.read()))
-  {
-    float lat, lon;
-    unsigned long fix_age;
+    /* Has a valid NMEA sentence been parsed? */
+    if (nss.available() && tinygps.encode(nss.read())) {
+        float lat, lon;
+        unsigned long fix_age;
 
-    /* Have we established our location? */
-    tinygps.f_get_position(&lat, &lon, &fix_age);
-    if (fix_age != TinyGPS::GPS_INVALID_AGE)
-    {
-      /* Calculate the distance to the destination */
-      currentDistance = TinyGPS::distance_between(lat, lon, LATLONG_LATITUDE, LATLONG_LONGITUDE);
-      return true;
+        /* Have we established our location? */
+        tinygps.f_get_position(&lat, &lon, &fix_age);
+        if (fix_age != TinyGPS::GPS_INVALID_AGE) {
+            currentLat = lat;
+            currentLon = lon;
+            gpsReady = true;
+            return true;
+        }
     }
-  }
 
-  return false;
+    gpsReady = false;
+    return false;
 }
 
 /**
@@ -315,34 +360,6 @@ bool doUpdateDistance() {
 void doCheckOverrideSerial() {
 
 }
-
-void doCheckAccess() {
-  /* Are we close?? */
-  if (currentDistance <= RADIUS)
-  {
-    Msg(lcd, "Access", "granted!", 2000);
-    servo.write(OPEN_ANGLE);
-  }
-
-  /* Nope.  Print the distance. */
-  else
-  {
-    // Get a random unit
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print((long)toRandomUnit(currentUnit, currentDistance));
-        lcd.setCursor(0, 1);
-    lcd.print(getUnitLabel(currentUnit));
-
-        currentUnit = (currentUnit + 1) % NUMBER_OF_UNITS;
-
-    delay(4000);
-    Msg(lcd, "Access", "Denied!", 2000);
-  }
-}
-
-
-
 
 /* Called to shut off the system using the Pololu switch */
 void PowerOff()
@@ -364,9 +381,10 @@ void PowerOff()
   servo.write(OPEN_ANGLE); // and open the box
 
   /* Reset the attempt counter */
-  EEPROM.write(EEPROM_OFFSET, 0);
-  EEPROM.write(EEPROM_OFFSET + 1, 0);
-  EEPROM.write(EEPROM_OFFSET + 2, 0);
+  currentStage = 0;
+  attempt_counter = 0;
+  currentMessageId = 0;
+  saveState();
 
   /* Leave the latch open for 10 seconds */
   delay(10000);
@@ -427,8 +445,8 @@ void toggleEye(bool on) {
         digitalWrite(LED_pin, HIGH);
 
     } else {
-      lcd.noDisplay();
-      digitalWrite(LED_pin, LOW);
+        lcd.noDisplay();
+        digitalWrite(LED_pin, LOW);
     }
 }
 
@@ -495,4 +513,8 @@ void displayMessage() {
             messages[id].lines[i].line2,
             1000);
     }
+
+    currentStage++;
+    // Intentionally don't saveState().
+    // I want the message to display again after a power cycle.
 }

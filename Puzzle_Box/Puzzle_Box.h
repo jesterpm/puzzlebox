@@ -19,9 +19,10 @@ void doLatLong();
 void doHeading();
 void doEastOf();
 
+bool doAttemptCount();
 bool doUpdateDistance();
 void doCheckOverrideSerial();
-void doCheckAccess();
+void saveState();
 void PowerOff();
 float toRandomUnit(int choice, float dist);
 
