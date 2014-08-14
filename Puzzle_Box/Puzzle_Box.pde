@@ -46,7 +46,8 @@ TinyGPS tinygps;
 PWMServo servo;
 
 /* Running Information */
-byte currentStage = MAIN_STAGE;
+byte firstRun = true;
+byte currentStage = 0;
 byte attempt_counter;
 byte currentMessageId;
 byte currentEyeAnimationStep = 0;
@@ -114,41 +115,74 @@ void setup() {
 
 /* The Arduino loop() function */
 void loop() {
+    // Uncomment to reset box
+    #ifdef RESET
+    resetState();
+    PowerOff();
+    #endif
+
+    #ifdef OPENBOX
+    servo.write(OPEN_ANGLE);
+    PowerOff();
+    #endif
+
+
+    if (firstRun && STATES[currentStage] == MESSAGE) {
+        firstRun = false;
+        displayMessage(currentMessageId++);
+        currentStage++;
+    }
+
     // Check for a stage transition
     int buttonState = digitalRead(BUTTON_PIN);
 
-    if (buttonState == LOW ) {
-        currentStage++;
-
+    bool progressMade = false;
+    if (buttonState == LOW) {
         // Find our stage
-        switch (currentStage) {
+        switch (STATES[currentStage]) {
             case MESSAGE:
-                displayMessage();
+                displayMessage(currentMessageId++);
+                progressMade = true;
                 break;
 
             case LATLONG:
-                doLatLong();
+                progressMade = doLatLong();
                 break;
 
             case HEADING:
-                doHeading();
+                progressMade = doHeading();
                 break;
 
             case EASTOF:
-                doEastOf();
+                progressMade = doEastOf();
                 break;
 
             case OPEN:
-                servo.write(OPEN_ANGLE); // and open the box
+                servo.write(OPEN_ANGLE); // open the box
                 break;
 
             default:
                 // Dunno
                 break;
         }
-
-    } else {
+    } else if (STATES[currentStage] != MESSAGE) {
         doIdle();
+    }
+
+    if (progressMade) {
+        currentStage++;
+        saveState();
+
+        switch (STATES[currentStage]) {
+            case MESSAGE:
+                displayMessage(currentMessageId++);
+                currentStage++;
+                break;
+
+            case OPEN:
+                servo.write(OPEN_ANGLE); // open the box
+                break;
+        }
     }
 
     // Find the current distance just to be ready
@@ -158,7 +192,7 @@ void loop() {
     doCheckOverrideSerial();
 
     /* Turn off after 5 minutes */
-    if (millis() >= 300000) {
+    if (millis() >= 120000) {
         PowerOff();
     }
 }
@@ -219,7 +253,7 @@ void doIdle() {
 /**
  * This is what we do when the button has been pressed.
  */
-void doLatLong() {
+bool doLatLong() {
     if (doAttemptCount()) {
         /* Calculate the distance to the destination */
         float currentDistance = TinyGPS::distance_between(
@@ -227,8 +261,7 @@ void doLatLong() {
 
         if (currentDistance <= RADIUS) {
             // Here we are!
-            currentStage++;
-            saveState();
+            return true;
 
         } else {
             // Not there yet. Get a random unit
@@ -242,9 +275,10 @@ void doLatLong() {
             delay(4000);
         }
     }
+    return false;
 }
 
-void doHeading() {
+bool doHeading() {
     if (doAttemptCount()) {
         /* Calculate the distance to the destination */
         float currentDistance = TinyGPS::distance_between(
@@ -252,8 +286,7 @@ void doHeading() {
 
         if (currentDistance <= RADIUS) {
             // Here we are!
-            currentStage++;
-            saveState();
+            return true;
 
         } else {
             // Not there yet, print a bearing
@@ -267,19 +300,20 @@ void doHeading() {
             delay(4000);
         }
     }
+    return false;
 }
 
-void doEastOf() {
+bool doEastOf() {
     if (doAttemptCount()) {
         if (currentLon > EASTOF_LONGITUDE) {
             // Here we are!
-            currentStage++;
-            saveState();
+            return true;
 
         } else {
             Msg(lcd, "Campfire", "S'mores!", 2000);
         }
     }
+    return false;
 }
 
 bool doAttemptCount() {
@@ -320,6 +354,14 @@ bool doAttemptCount() {
 
     saveState();
     return true;
+}
+
+void resetState() {
+  /* Reset the attempt counter */
+  currentStage = 0;
+  attempt_counter = 0;
+  currentMessageId = 0;
+  saveState();
 }
 
 void saveState() {
@@ -380,11 +422,7 @@ void PowerOff()
   delay(120000);
   servo.write(OPEN_ANGLE); // and open the box
 
-  /* Reset the attempt counter */
-  currentStage = 0;
-  attempt_counter = 0;
-  currentMessageId = 0;
-  saveState();
+  resetState();
 
   /* Leave the latch open for 10 seconds */
   delay(10000);
@@ -503,8 +541,7 @@ char* getUnitLabel(int choice) {
     }
 }
 
-void displayMessage() {
-    int id = currentMessageId++;
+bool displayMessage(int id) {
     int pairs = messages[id].pairs;
 
     for (int i = 0; i < pairs; i++) {
@@ -513,8 +550,5 @@ void displayMessage() {
             messages[id].lines[i].line2,
             1000);
     }
-
-    currentStage++;
-    // Intentionally don't saveState().
-    // I want the message to display again after a power cycle.
+    return true;
 }

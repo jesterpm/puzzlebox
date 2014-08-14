@@ -14,14 +14,15 @@ void stepEyeAnimation();
 void toggleEye(bool on);
 
 void doIdle();
-void displayMessage();
-void doLatLong();
-void doHeading();
-void doEastOf();
+bool displayMessage(int id);
+bool doLatLong();
+bool doHeading();
+bool doEastOf();
 
 bool doAttemptCount();
 bool doUpdateDistance();
 void doCheckOverrideSerial();
+void resetState();
 void saveState();
 void PowerOff();
 float toRandomUnit(int choice, float dist);
@@ -34,9 +35,6 @@ static const int DEF_ATTEMPT_MAX = 50;
 static const int EEPROM_OFFSET = 100;
 
 /* Program Stage Constants */
-static const int MAIN_STAGE = 1;
-static const int BUTTON_STAGE = 2;
-
 static const char MESSAGE = 3;
 static const char LATLONG = 4;
 static const char HEADING = 5;
@@ -44,7 +42,6 @@ static const char EASTOF  = 6;
 static const char OPEN    = 7;
 
 static const byte STATES[] = {
-        0,
         MESSAGE, // Daniel!? Is it you?
         MESSAGE, // Finally, you found me; Adventure time
         LATLONG,
