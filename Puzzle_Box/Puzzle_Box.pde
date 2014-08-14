@@ -126,7 +126,7 @@ void loop() {
     PowerOff();
     #endif
 
-
+    // On the first loop, display the current message.
     if (firstRun && STATES[currentStage] == MESSAGE) {
         firstRun = false;
         displayMessage(currentMessageId++);
@@ -136,7 +136,7 @@ void loop() {
     // Check for a stage transition
     int buttonState = digitalRead(BUTTON_PIN);
 
-    bool progressMade = false;
+    bool progressMade = false; // Set to true to move to the next state.
     if (buttonState == LOW) {
         // Find our stage
         switch (STATES[currentStage]) {
@@ -159,6 +159,7 @@ void loop() {
 
             case OPEN:
                 servo.write(OPEN_ANGLE); // open the box
+                // OPEN is the terminal state. Don't progress.
                 break;
 
             default:
@@ -173,15 +174,16 @@ void loop() {
         currentStage++;
         saveState();
 
-        switch (STATES[currentStage]) {
-            case MESSAGE:
-                displayMessage(currentMessageId++);
-                currentStage++;
-                break;
+        if (MESSAGE == STATES[currentStage]) {
+            displayMessage(currentMessageId++);
+            currentStage++;
+        }
 
-            case OPEN:
-                servo.write(OPEN_ANGLE); // open the box
-                break;
+        // Note the fallthrough. If the next two stages are MESSAGE,OPEN,
+        // both will happen with the last successful button press.
+        if (OPEN == STATES[currentStage]) {
+            servo.write(OPEN_ANGLE); // open the box
+            // OPEN is the terminal state. Don't progress.
         }
     }
 
